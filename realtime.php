@@ -41,6 +41,7 @@ class RealTimeMinecraft
 		$this->lastMinecraftTime = 0;
 		
 		$this->config = array_merge($fileConfig, $cmdConfig);
+		$this->config['timeout'] = intval($this->config['timeout']);
 	
 		return TRUE;
 	}
@@ -58,7 +59,7 @@ class RealTimeMinecraft
 			if($result == "No game rule called 'doDaylightCycle' is available")
 			{
 				// TODO : make this better with an Exception or Logs
-				echo "Minecraft server version must be >= 1.6";
+				echo "Minecraft server version must be >= 1.6\n";
 				die();
 			}
 	
@@ -69,6 +70,37 @@ class RealTimeMinecraft
 			echo $e->getMessage( );
 	
 			return FALSE;
+		}
+	}
+	
+	// Send to the server
+	private function send($cmd)
+	{
+		$notsended = TRUE;
+		
+		while($notsended)
+		{
+			// send the rcon
+			if($this->rcon->command($cmd))
+			{
+				$notsended = FALSE;
+			}
+			else // Try to reconnect
+			{
+				echo "Reconection...";
+				$this->rcon->disconnect();
+				try
+				{
+					$this->rcon->connect($this->config['hostname'], $this->config['port'], $this->config['password'], $this->config['timeout']);
+				}
+				catch( Exception $e )
+				{
+					echo $e->getMessage( );
+				}
+			}
+			
+			// Wait a second
+			sleep(10);
 		}
 	}
 	
@@ -95,7 +127,7 @@ class RealTimeMinecraft
 		if($this->time != $this->lastTime && $this->minecraftTime != $this->lastMinecraftTime)
 		{
 			// Send RCon with $minecraftTime
-			$this->rcon->command('time set '.$this->minecraftTime);
+			$this->send('time set '.$this->minecraftTime);
 			//echo "Send : ".$this->minecraftTime."\n";
 			
 			// Update "last" variables
